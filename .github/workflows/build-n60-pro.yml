@@ -1,0 +1,68 @@
+name: Build FanchmWrt for N60 Pro
+
+on:
+  workflow_dispatch:
+    inputs:
+      preflight:
+        description: Check configuration, package sources and downloads
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: n60-pro-fanchmwrt-build-${{ inputs.preflight && 'preflight' || 'firmware' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Prepare build runner
+        run: |
+          # OpenWrt builds its own toolchain and downloads its target runtimes.
+          # Leave room for both the global root and the device root during packaging.
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
+            /usr/lib/jvm /usr/share/swift /usr/local/.ghcup /usr/local/share/boost \
+            /usr/local/share/chromium "$HOME/.rustup"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential binutils bison flex g++-multilib gcc-multilib gettext \
+            git gawk libncurses-dev libssl-dev libelf-dev libzstd-dev libglib2.0-dev zlib1g-dev \
+            python3 python3-setuptools python3-pyelftools rsync file wget curl unzip zstd cpio xxd \
+            quilt swig pkgconf clang llvm lld cmake ninja-build device-tree-compiler jq squashfs-tools
+          sudo apt-get clean
+          df -h .
+
+      - name: Check sources and build firmware
+        env:
+          N60_PREFLIGHT_ONLY: ${{ inputs.preflight }}
+        run: bash build.sh
+
+      - name: Upload firmware and SHA-256
+        if: ${{ !inputs.preflight }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: n60-pro-fanchmwrt-nikki-honk
+          path: firmware/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: n60-pro-fanchmwrt-build-logs
+          path: |
+            download.log
+            build.log
+            fanchmwrt/.config
+            firmware/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 3
