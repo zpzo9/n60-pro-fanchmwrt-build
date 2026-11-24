@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+trap 'echo "Build script stopped at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 workspace=$(pwd -P)
 source_dir="$workspace/fanchmwrt"
@@ -90,9 +91,14 @@ mapfile -t images < <(find "$target" -maxdepth 1 -name '*netcore_n60-pro*squashf
 test "${#images[@]}" = 1
 image="${images[0]}"
 test -s "$image"
+candidate="$workspace/candidate"
+mkdir -p "$candidate"
+cp "$image" "$candidate/"
+(cd "$candidate" && sha256sum ./*sysupgrade.itb > SHA256SUMS)
 test "$(stat -c %s "$image")" -lt $((0x7a80000))
-manifest="${image%-squashfs-sysupgrade.itb}.manifest"
+manifest="${image%-netcore_n60-pro-squashfs-sysupgrade.itb}.manifest"
 test -s "$manifest"
+cp "$manifest" "$candidate/"
 for package in kmod-shortcut-fe luci-app-fwx-fastnat kmod-fwx fwxd luci-theme-fanchmwrt \
   nikki luci-app-nikki mihomo-meta honk luci-app-honk odhcp6c odhcpd-ipv6only; do
   grep -q "^$package - " "$manifest" || { echo "Missing image package: $package" >&2; exit 1; }
@@ -108,6 +114,8 @@ staging_dir/host/bin/fwtool -i "$output/n60-pro-metadata.json" "$image"
 jq -e '.supported_devices | index("netcore,n60-pro") != null' "$output/n60-pro-metadata.json"
 kernel_config=$(find build_dir/target-*/linux-mediatek_filogic -type f -path '*/linux-6.12.*/.config' -print -quit)
 test -n "$kernel_config"
+cp "$kernel_config" "$candidate/kernel.config"
+cp "$output/n60-pro-metadata.json" "$candidate/"
 for option in IPV6 DEBUG_INFO_BTF BPF_SYSCALL BPF_JIT CGROUP_BPF NET_NS; do
   grep -qx "CONFIG_${option}=y" "$kernel_config"
 done
