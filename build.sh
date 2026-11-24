@@ -24,6 +24,8 @@ sed -E "s@https://git.openwrt.org/(feed|project)/@https://github.com/openwrt/@; 
 test "$(git -C feeds/fanchmwrt rev-parse HEAD)" = "$feed_pin"
 cp -a feeds_patches/. feeds/
 ./scripts/feeds install -a
+# This optional LuCI app creates a Kconfig cycle between the two WeeChat flavors.
+rm -f package/feeds/luci/luci-app-weechat
 
 checkout https://github.com/nikkinikki-org/OpenWrt-nikki.git "$workspace/nikki-source" "$nikki_pin"
 checkout https://github.com/kenzok8/openwrt-honk.git "$workspace/honk-source" "$honk_pin"
@@ -41,6 +43,7 @@ CONFIG_KERNEL_NET_NS=y
 CONFIG_KERNEL_CGROUPS=y
 CONFIG_KERNEL_CGROUP_BPF=y
 CONFIG_KERNEL_DEBUG_INFO=y
+# CONFIG_KERNEL_DEBUG_INFO_REDUCED is not set
 CONFIG_KERNEL_DEBUG_INFO_BTF=y
 CONFIG_PACKAGE_mihomo-meta=y
 CONFIG_PACKAGE_luci-app-nikki=y
