@@ -128,7 +128,11 @@ size=$(fdtget -tu "$image" "/images/$root_node" data-size)
 rootfs="$workspace/n60-pro-root.squashfs"
 dd if="$image" of="$rootfs" iflag=skip_bytes,count_bytes skip="$offset" count="$size" bs=1M status=none
 root="$workspace/verified-root"
-staging_dir/host/bin/unsquashfs4 -no-progress -d "$root" "$rootfs"
+# Extract the checked paths so a non-root runner need not create /dev/console.
+staging_dir/host/bin/unsquashfs4 -no-progress -d "$root" "$rootfs" \
+  etc/init.d/fastnat etc/init.d/nikki etc/init.d/honk etc/config/fastnat etc/config/nikki etc/config/honk \
+  usr/bin/honk-core usr/bin/mihomo usr/libexec/mihomo lib/netifd/proto/dhcpv6.sh lib/modules \
+  usr/lib/lua/luci/controller/fwx_fastnat.lua usr/share/doona/index.html
 for item in etc/init.d/fastnat etc/init.d/nikki etc/init.d/honk usr/bin/honk-core \
   usr/libexec/mihomo lib/netifd/proto/dhcpv6.sh; do
   test -x "$root/$item"
